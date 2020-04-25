@@ -1,0 +1,41 @@
+#!/bin/bash
+set -e
+
+die () {
+    echo "$*"
+    exit 1
+}
+
+usage="Usage: release <(core|annotations)> <version>"
+
+if [[ `git status --porcelain` ]]; then
+  die "dirty workspace"
+fi
+
+MODULE="$1"
+VERSION="$2"
+TAG_PREFIX=""
+
+if [[ "$MODULE" == "core" ]]; then
+  TAG_PREFIX="v"
+elif [[ "$MODULE" == "annotations" ]]; then
+  TAG_PREFIX="a"
+else
+  die "$usage"
+fi
+
+if [[ -z "$VERSION" ]]; then
+  die "$usage"
+fi
+
+git checkout master
+git pull origin master
+./gradlew core:clean core:test examples:clean examples:test
+./gradlew -Pversion=${VERSION} ${MODULE}:publish
+
+read -e -p "Upload successful. Also tag? [y/N]"
+if [[ "$REPLY" == [Yy]* ]]; then
+  git tag "${TAG_PREFIX}${VERSION}"
+  git push origin --tags
+fi
+
